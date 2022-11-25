@@ -1,5 +1,5 @@
 # Modal window
 
-## HTML
-** CSS
+* HTML
+* CSS
 * JS
