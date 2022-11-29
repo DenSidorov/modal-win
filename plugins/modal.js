@@ -1,38 +1,110 @@
-$.modal = function(options) {
-    function _createModal(options) {
-        const modal = document.createElement('div');
-        modal.classList.add('modal_1');
-        modal.insertAdjacentHTML('afterbegin', `
-            <div class="modal-overlay">
-                <div class="modal-window">
+Element.prototype.appendAfter = function(element) {
+    element.parentNode.insertBefore(this, element.nextSibling);
+};
+
+function noop() {};
+
+function _createModalFooter(buttons = []) {
+    if (buttons.length === 0) {
+        return document.createElement('div');
+    };
+
+    const wrap = document.createElement('div');
+    wrap.classList.add('modal-footer');
+
+    buttons.forEach(btn => {
+        const $btn = document.createElement('button');
+        $btn.textContent = btn.text;
+        $btn.classList.add('btn');
+        $btn.classList.add(`${btn.type || 'btn-secondary'}`);        
+        $btn.onclick = btn.handler || noop;
+
+        wrap.appendChild($btn);
+    })
+
+    return wrap;
+};
+
+function _createModal(options) {
+  const DEFAULT_WIDTH = "500px";
+  const modal = document.createElement("div");
+  modal.classList.add("modal_1");
+  modal.insertAdjacentHTML(
+    "afterbegin",
+    `
+            <div class="modal-overlay" data-close="true">
+                <div class="modal-window" style="width: ${
+                  options.width || DEFAULT_WIDTH
+                };">
                     <div class="modal-header">
-                        <span class="modal-title">Title</span>
-                        <span class="modal-close">&times;</span>
+                        <span class="modal-title">${
+                          options.title || "Modal window"
+                        }</span>
+                        ${
+                          options.closable
+                            ? '<span class="modal-close" data-close="true">&times;</span>'
+                            : ""
+                        }
                     </div>
-                    <div class="modal-body">
-                        <p>Lorem ipsum dolor sit amet.</p>
-                        <p>Lorem ipsum dolor sit amet.</p>
-                    </div>
-                    <div class="modal-footer">
-                        <button id="ok-btn" class="btn btn-primary" style="margin-right: 5px">Ok</button>
-                        <button id="cancel-btn" class="btn btn-danger">Cancel</button>
+                    <div class="modal-body" data-content>
+                        ${options.content || ""}
                     </div>
                 </div>
             </div>
-        `)
-        document.body.appendChild(modal);
-        return modal
-    };
+        `
+  );
+  
+  const footer = _createModalFooter(options.footerBattons);
+  footer.appendAfter(modal.querySelector('[data-content]'))
+  
+  document.body.appendChild(modal);
+  return modal;
+}
 
-    const $modal = _createModal(options);
+$.modal = function (options) {
+  const ANIMATION_SPEED = 200;
+  const $modal = _createModal(options);
+  let closing = false;
+  let destroyed = false;
 
-    return {
-        open() {
-            $modal.classList.add('open');
-        },
-        close() {
-            $modal.classList.remove('open');
-        },
-        destroy() {}
-    };
+  const modal = {
+    open() {
+        if (destroyed) {
+            console.log('Modal is destroyed');
+        };
+      !closing && $modal.classList.add("open");
+    },
+    close() {
+      $modal.classList.remove("open");
+      $modal.classList.add("hide");
+      setTimeout(() => {
+        $modal.classList.remove("hide");
+        closing = false;
+
+        if (options.onClose() && typeof options.onClose() === 'function') {
+            options.onClose();
+        }
+
+      }, ANIMATION_SPEED);
+    },
+  };
+
+  const listener = event => {
+    if (event.target.dataset.close) {
+        modal.close();
+      };
+  }
+
+  $modal.addEventListener("click", listener);
+
+  return Object.assign(modal, {
+    destroy() {
+        $modal.parentNode.removeChild($modal);
+        $modal.removeEventListener('click', listener);
+        destroyed = true;
+    },
+    setContent(html) {
+        $modal.querySelector('[data-content]').innerHTML = html;
+    }
+  });
 };
